@@ -27,7 +27,8 @@ function getMimeType(file) {
 
 export async function analyzeImageFile(file, options = {}) {
   if (!file) throw new Error("Nenhum arquivo foi fornecido");
-  if (!API_KEY) throw new Error("VITE_GPT_API_KEY não está configurada no .env.local");
+  if (!API_KEY)
+    throw new Error("VITE_GPT_API_KEY não está configurada no .env.local");
 
   try {
     // Convert to base64 data URL
@@ -36,7 +37,7 @@ export async function analyzeImageFile(file, options = {}) {
 
     // Call OpenAI Vision API
     const payload = {
-      model: "gpt-4-vision-preview",
+      model: "gpt-4.1",
       messages: [
         {
           role: "user",
@@ -50,16 +51,14 @@ export async function analyzeImageFile(file, options = {}) {
             {
               type: "text",
               text: `Você é um assistente que analisa imagens de produtos agrícolas. 
-              
-Analize a imagem e extraia as seguintes informações em JSON (português PT):
-- name: Nome do produto
-- category: Categoria do produto (ex: Verduras, Frutas, Cereais, etc)
-- description: Descrição breve do estado/qualidade do produto
-- price: Preço estimado em MZN (moeda de Moçambique)
-- quantity: Quantidade estimada (unidade apropriada)
-
-Retorne APENAS o JSON, sem comentários adicionais.
-Exemplo: {"name":"Tomate","category":"Verduras","description":"Tomate fresco e maduro","price":"50","quantity":"20"}`,
+                    Analize a imagem e extraia as seguintes informações em JSON (português PT):
+                    - name: Nome do produto
+                    - category: Categoria do produto (ex: Verduras, Frutas, Cereais, etc)
+                    - description: Descrição breve do estado/qualidade do produto
+                    - price: Preço estimado em MZN (moeda de Moçambique)
+                    - quantity: Quantidade estimada (unidade apropriada)
+                    Retorne APENAS o JSON, sem comentários adicionais.
+                    Exemplo: {"name":"Tomate","category":"Verduras","description":"Tomate fresco e maduro","price":"50","quantity":"20"}`,
             },
           ],
         },
@@ -71,7 +70,7 @@ Exemplo: {"name":"Tomate","category":"Verduras","description":"Tomate fresco e m
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`,
+        Authorization: `Bearer ${API_KEY}`,
       },
       body: JSON.stringify(payload),
     });

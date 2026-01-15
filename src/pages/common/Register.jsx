@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react"
-import { createUserWithEmailAndPassword } from "firebase/auth"
 import { auth, db } from "../../firebase"
 import { useNavigate, useLocation } from "react-router-dom"
-import { doc, setDoc } from "firebase/firestore"
+import { doc, setDoc, getDoc } from "firebase/firestore"
 import agricultor from "../../assets/agricultor.jpg";
 import transportador from "../../assets/transportador.jpg";
 import comprador from "../../assets/comprador.jpg";
@@ -10,7 +9,6 @@ import comprador from "../../assets/comprador.jpg";
 const Register = () => {
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
-  const [password, setPassword] = useState("")
   const [role, setRole] = useState("")
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
@@ -38,7 +36,6 @@ const Register = () => {
     if (!phone.trim()) newErrors.phone = "O campo Telefone é obrigatório."
     else if (!validatePhone(phone))
       newErrors.phone = "Número inválido. Use o padrão moçambicano (+258...)."
-    if (!password.trim()) newErrors.password = "O campo Senha é obrigatório."
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -49,26 +46,42 @@ const Register = () => {
     setErrors({})
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        `${Date.now()}@placeholder.com`, // email fake
-        password
-      )
-      const user = userCredential.user
+      // Verificar se o telefone já está registrado
+      const userDocRef = doc(db, "users", phone)
+      const userDoc = await getDoc(userDocRef)
 
-      await setDoc(doc(db, "users", user.uid), {
+      if (userDoc.exists()) {
+        setErrors({ submit: "Este número já está registrado. Tente fazer login." })
+        return
+      }
+
+      // Criar usuário simulado (MVP)
+      const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+      await setDoc(doc(db, "users", userId), {
+        id: userId,
         name,
         phone,
         role,
         createdAt: new Date(),
+        isVerified: true // MVP - considerar verificado
       })
 
+      // Armazenar no localStorage para simular sessão
+      localStorage.setItem("currentUser", JSON.stringify({
+        id: userId,
+        name,
+        phone,
+        role
+      }))
+
+      // Redirecionar baseado no papel
       if (role === "agricultor") navigate("/agricultor")
       else if (role === "transportador") navigate("/transportador")
       else navigate("/comprador")
     } catch (err) {
-      setErrors({ submit: "Erro ao registrar. Verifique os dados." })
-      console.error(err.message)
+      console.error("Erro ao registrar:", err)
+      setErrors({ submit: "Erro ao registrar. Tente novamente." })
     } finally {
       setLoading(false)
     }
@@ -116,25 +129,13 @@ const Register = () => {
           <label className="block mb-1 font-medium text-slate-300">Telefone</label>
           <input
             type="text"
-            placeholder="Digite seu número de telefone"
+            placeholder="+258XXXXXXXXX"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className={`w-full p-3 mb-1 bg-[#05291C] border rounded-xl focus:outline-none focus:ring-2 transition focus:ring-[#BF7F17] focus:border-[#BF7F17] placeholder-slate-500
               ${errors.phone ? "border-red-500" : "border-slate-700"}`}
           />
           {errors.phone && <p className="text-red-500 text-xs mb-2">{errors.phone}</p>}
-
-          {/* Senha */}
-          <label className="block mb-1 font-medium text-slate-300">Senha</label>
-          <input
-            type="password"
-            placeholder="Digite a sua senha"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={`w-full p-3 mb-1 bg-[#05291C] border rounded-xl focus:outline-none focus:ring-2 transition focus:ring-[#BF7F17] focus:border-[#BF7F17] placeholder-slate-500
-              ${errors.password ? "border-red-500" : "border-slate-700"}`}
-          />
-          {errors.password && <p className="text-red-500 text-xs mb-2">{errors.password}</p>}
 
           <button
             type="submit"

@@ -1,5 +1,15 @@
+import { LogOut } from "lucide-react";
+import { logout } from "../../utils/auth";
+import { useNavigate } from "react-router-dom";
+
 const Header = ({ compradorName, onOpenSettings }) => {
+  const navigate = useNavigate();
   const displayName = compradorName || "Comprador";
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <div className="flex items-center justify-between p-6 bg-gradient-to-r from-green-900 via-green-900 to-green-900 shadow-lg">
@@ -9,14 +19,14 @@ const Header = ({ compradorName, onOpenSettings }) => {
         </div>
         <h1 className="text-2xl font-bold text-white">{displayName}</h1>
       </div>
-      {/* ✅ Abre o SettingsPanel */}
-      {/* <button
-        onClick={onOpenSettings}
-        className="p-2 rounded-full bg-black/20 hover:bg-black/30 transition"
-        title="Configurações"
+      {/* Botão de Logout */}
+      <button
+        onClick={handleLogout}
+        className="p-2 rounded-full bg-red-600/20 hover:bg-red-600/30 transition text-red-400 hover:text-red-300"
+        title="Sair"
       >
-        ⚙️
-      </button> */}
+        <LogOut className="w-5 h-5" />
+      </button>
     </div>
   );
 };

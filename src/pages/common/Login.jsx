@@ -1,64 +1,67 @@
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 import { collection, query, where, getDocs } from "firebase/firestore";
 
 const Login = () => {
-  const [identifier, setIdentifier] = useState(""); // email ou nome
-  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const validatePhone = (phone) => {
+    const regex = /^\+258[8-9]\d{7,8}$/
+    return regex.test(phone)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!identifier || !password) {
-      setError("Por favor, preencha todos os campos.");
+    if (!phone) {
+      setError("Por favor, digite seu número de telefone.");
+      return;
+    }
+
+    if (!validatePhone(phone)) {
+      setError("Número inválido. Use o padrão moçambicano (+258...).");
       return;
     }
 
     setLoading(true);
 
     try {
-      // Buscar usuário no Firestore pelo nome ou email
+      // Buscar usuário no Firestore pelo telefone
       const usersRef = collection(db, "users");
-      const q = query(
-        usersRef,
-        where("email", "==", identifier)
-      );
-
-      const nameQuery = query(usersRef, where("name", "==", identifier));
+      const q = query(usersRef, where("phone", "==", phone));
       const snapshot = await getDocs(q);
-      const snapshotName = snapshot.empty ? await getDocs(nameQuery) : snapshot;
 
-      if (snapshotName.empty) {
-        setError("Usuário não encontrado.");
+      if (snapshot.empty) {
+        setError("Número não encontrado. Verifique ou crie uma conta.");
         setLoading(false);
         return;
       }
 
-      // Obtem o primeiro usuário encontrado
-      const userData = snapshotName.docs[0].data();
-      const userEmail = userData.email || `${Date.now()}@placeholder.com`;
+      // Obter dados do usuário
+      const userData = snapshot.docs[0].data();
 
-      // Login com email (necessário para autenticação Firebase)
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        userEmail,
-        password
-      );
+      // Armazenar no localStorage para simular sessão (MVP)
+      localStorage.setItem("currentUser", JSON.stringify({
+        id: userData.id,
+        name: userData.name,
+        phone: userData.phone,
+        role: userData.role
+      }));
 
+      // Redirecionar baseado no papel
       const role = userData.role;
       if (role === "agricultor") navigate("/agricultor");
       else if (role === "transportador") navigate("/transportador");
       else navigate("/comprador");
 
     } catch (err) {
-      setError("Erro ao fazer login. Verifique os dados.");
-      console.error(err);
+      console.error("Erro ao fazer login:", err);
+      setError("Erro ao fazer login. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -68,42 +71,27 @@ const Login = () => {
     <div className="flex flex-col items-center justify-center h-screen bg-[#05291C] p-8">
       <div className="flex flex-col justify-center w-full max-w-md rounded-2xl px-8 py-10 border border-[#103a2f] bg-[#112C25]/70 backdrop-blur-md shadow-lg text-white text-sm">
         <h2 className="text-2xl font-bold text-[#FE9300]">Entrar</h2>
-        <p className="text-slate-300 mt-1 mb-6">Acesse a sua conta</p>
+        <p className="text-slate-300 mt-1 mb-6">Digite seu número de telefone</p>
 
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
 
         <form className="mt-2" onSubmit={handleSubmit}>
           <label className="block mb-1 font-medium text-slate-200">
-            E-mail ou Nome
+            Número de Telefone
           </label>
           <input
             type="text"
-            placeholder="Digite e-mail ou nome"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="+258XXXXXXXXX"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
             className="w-full p-3 mb-4 bg-[#05291C] border border-slate-700 rounded-xl focus:outline-none focus:ring-2 transition focus:ring-[#BF7F17] focus:border-[#BF7F17] placeholder-slate-500"
-          />
-
-          <label className="block mb-1 font-medium text-slate-200">
-            Senha
-          </label>
-          <input
-            type="password"
-            placeholder="Digite a sua senha"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 mb-3 bg-[#05291C] border border-slate-700 rounded-xl focus:outline-none focus:ring-2 transition focus:ring-[#BF7F17] focus:border-[#BF7F17] placeholder-slate-500"
           />
 
           <button
             type="submit"
             disabled={loading}
             className={`w-full mt-2 px-4 py-3 font-semibold text-white rounded-4xl transition duration-300
-              ${
-                loading
-                  ? "bg-[#FE9300]/70 cursor-not-allowed"
-                  : "bg-[#FE9300] hover:bg-[#E38004] hover:scale-105"
-              }`}
+              ${loading ? "bg-[#FE9300]/70 cursor-not-allowed" : "bg-[#FE9300] hover:bg-[#E38004] hover:scale-105"}`}
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>

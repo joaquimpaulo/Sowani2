@@ -1,5 +1,6 @@
 import { useState, useRef } from "react"
 import { analyzeImageFile } from "../../services/gptImageService"
+import productService from "../../services/productService"
 
 const AddProductPopup = ({ isOpen, onClose, onAdd }) => {
   const [name, setName] = useState("")
@@ -11,18 +12,33 @@ const AddProductPopup = ({ isOpen, onClose, onAdd }) => {
   const [imagePreview, setImagePreview] = useState(null)
   const [loadingAI, setLoadingAI] = useState(false)
   const [errorAI, setErrorAI] = useState("")
+  const [loadingSave, setLoadingSave] = useState(false)
   const inputRef = useRef(null)
 
   const resetForm = () => {
     setName(""); setPrice(""); setQuantity(""); setCategory(""); setDescription("");
-    setImageFile(null); setImagePreview(null); setErrorAI(""); setLoadingAI(false);
+    setImageFile(null); setImagePreview(null); setErrorAI(""); setLoadingAI(false); setLoadingSave(false);
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    onAdd({ name, price, quantity, category, description, image: imageFile })
-    resetForm()
-    onClose()
+    setLoadingSave(true)
+    try {
+      const payload = { name, price, quantity, category, description, imageUrl: imagePreview }
+      if (onAdd) {
+        // enviar também a preview para permitir fallback no caller
+        await onAdd({ name, price, quantity, category, description, image: imageFile, imagePreview })
+      } else {
+        // fallback to local product service
+        productService.addProduct(payload)
+      }
+      resetForm()
+      onClose()
+    } catch (error) {
+      setErrorAI("Erro ao salvar produto: " + error.message)
+    } finally {
+      setLoadingSave(false)
+    }
   }
 
   const handleFileChange = (e) => {
@@ -189,14 +205,14 @@ const AddProductPopup = ({ isOpen, onClose, onAdd }) => {
           </button>
           <button
             type="submit"
-            disabled={!isFormComplete}
+            disabled={!isFormComplete || loadingSave}
             className={`flex-1 px-4 py-3 rounded-2xl font-semibold transition ${
-              isFormComplete
+              isFormComplete && !loadingSave
                 ? "bg-green-600 hover:bg-green-700 text-white"
                 : "bg-gray-600 text-gray-300 cursor-not-allowed"
             }`}
           >
-            Salvar
+            {loadingSave ? "Salvando..." : "Salvar"}
           </button>
         </div>
       </form>

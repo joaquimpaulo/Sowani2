@@ -11,7 +11,7 @@ const SelectRole = () => {
   const roles = [
     {
       key: "agricultor",
-      title: "Agricultor",
+      title: "Vendedor",
       image: agricultor,
       subtitle: "Venda seus produtos",
     },
@@ -30,21 +30,21 @@ const SelectRole = () => {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#05291C] p-6 text-white text-center">
-      <h1 className="text-2xl font-bold text-[#ffffff] mb-10">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-[#00241A] p-6 text-white text-center">
+      <h1 className="text-3xl font-bold text-[#ffffff] mb-10">
         Selecione seu perfil para continuar
       </h1>
 
-      <div className="flex flex-col gap-6 w-full max-w-md">
+      <div className="flex flex-col gap-4 w-full max-w-md">
         {roles.map((role) => (
           <div
             key={role.key}
             onClick={() => navigate(`/register?role=${role.key}`)}
-            className="cursor-pointer bg-[#112C25]/70 backdrop-blur-md border border-white/20 p-6 rounded-3xl shadow-lg w-full hover:scale-105 hover:bg-[#112C25]/90 transition transform"
+            className="cursor-pointer bg-[#112C25]/70 backdrop-blur-md border border-white/20 p-7.5 rounded-3xl shadow-lg w-full hover:scale-105 hover:bg-[#112C25]/90 transition transform"
           >
             <div className="flex items-center gap-4">
               {/* Div da Imagem */}
-              <div className="flex-shrink-0 min-w-24 h-24 flex items-center justify-center bg-[#05291C] rounded-full border border-white/20">
+              <div className="flex-shrink-0 min-w-20 h-20 flex items-center justify-center bg-[#05291C] rounded-full border border-white/20">
                 <img
                   src={role.image}
                   alt={role.title}
@@ -57,7 +57,7 @@ const SelectRole = () => {
                 <h2 className="text-xl font-semibold text-[#ffffff] mb-1">
                   {role.title}
                 </h2>
-                <p className="text-[#A6BF80] text-sm">{role.subtitle}</p>
+                <p className="text-[#A6BF80] text-m">{role.subtitle}</p>
               </div>
             </div>
           </div>

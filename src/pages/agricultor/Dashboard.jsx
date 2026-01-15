@@ -12,6 +12,8 @@ import {
   updateDoc,
   getDoc,
 } from "firebase/firestore";
+import { uploadProductImage } from "../../services/uploadService";
+import productService from "../../services/productService";
 
 import Feed from "./Feed";
 import Chat from "./Chat";
@@ -62,12 +64,56 @@ const DashboardAgricultor = () => {
 
   // Adicionar produto
   const handleAdd = async (product) => {
-    await addDoc(collection(db, "products"), {
-      ...product,
-      ownerId: auth.currentUser.uid,
-      sold: 0,
-    });
-    fetchProducts();
+    try {
+      // Se não há utilizador autenticado, usar serviço local como fallback
+      if (!auth.currentUser) {
+        const payload = {
+          name: product.name,
+          price: product.price,
+          quantity: product.quantity,
+          category: product.category,
+          description: product.description,
+          imageUrl: product.imagePreview || null,
+          sold: 0,
+          visualizacoes: 0,
+          createdAt: new Date(),
+        }
+        const newProduct = productService.addProduct(payload)
+        // atualizar estado local para mostrar imediatamente
+        setProducts((prev) => [newProduct, ...prev])
+        return
+      }
+
+      let imageUrl = null;
+
+      // Se houver imagem, fazer upload
+      if (product.image) {
+        imageUrl = await uploadProductImage(
+          product.image,
+          auth.currentUser.uid,
+          `${Date.now()}`
+        );
+      }
+
+      // Salvar produto no Firestore sem o objeto File
+      await addDoc(collection(db, "products"), {
+        name: product.name,
+        price: product.price,
+        quantity: product.quantity,
+        category: product.category,
+        description: product.description,
+        imageUrl: imageUrl, // URL da imagem armazenada
+        ownerId: auth.currentUser.uid,
+        sold: 0,
+        visualizacoes: 0,
+        createdAt: new Date(),
+      });
+
+      fetchProducts();
+    } catch (error) {
+      console.error("Erro ao adicionar produto:", error);
+      alert("Erro ao salvar produto: " + error.message);
+    }
   };
 
   // Deletar produto

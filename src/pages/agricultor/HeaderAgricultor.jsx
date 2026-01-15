@@ -1,4 +1,6 @@
-import { Search } from "lucide-react";
+import { Search, LogOut } from "lucide-react";
+import { logout } from "../../utils/auth";
+import { useNavigate } from "react-router-dom";
 
 const HeaderAgricultor = ({
   userData,
@@ -6,6 +8,12 @@ const HeaderAgricultor = ({
   searchTerm,
   onSearchChange,
 }) => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
   return (
     <div className="bg-[#1A3A31] p-6 space-y-4">
       {/* Nome e Avatar */}
@@ -26,14 +34,14 @@ const HeaderAgricultor = ({
           </div>
         </div>
 
-        {/* Botão de Configurações */}
-        {/* <button
-          onClick={onOpenSettings}
-          className="p-2 rounded-full bg-black/20 hover:bg-black/30 transition"
-          title="Configurações"
+        {/* Botão de Logout */}
+        <button
+          onClick={handleLogout}
+          className="p-2 rounded-full bg-red-600/20 hover:bg-red-600/30 transition text-red-400 hover:text-red-300"
+          title="Sair"
         >
-          ⚙️
-        </button> */}
+          <LogOut className="w-5 h-5" />
+        </button>
         <div className="relative">
           <Search className="absolute left-1 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input

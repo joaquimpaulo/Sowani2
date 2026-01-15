@@ -1,4 +1,21 @@
-const Feed = ({ products, onEdit, onDelete, searchTerm = "", onTabChange }) => {
+import { useEffect, useState } from "react"
+import productService from "../../services/productService"
+
+const Feed = ({ products: propProducts, onEdit, onDelete, searchTerm = "", onTabChange }) => {
+  const [products, setProducts] = useState(propProducts ?? [])
+
+  useEffect(() => {
+    if (!propProducts) {
+      setProducts(productService.getProducts())
+
+      const handler = (e) => setProducts(e.detail ?? productService.getProducts())
+      window.addEventListener("productsUpdated", handler)
+      return () => window.removeEventListener("productsUpdated", handler)
+    } else {
+      setProducts(propProducts)
+    }
+  }, [propProducts])
+
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
