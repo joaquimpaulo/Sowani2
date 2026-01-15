@@ -10,7 +10,7 @@ import SearchBar from "./SearchBar";
 import ProductCard from "./ProductCard";
 import SupplierSlider from "./SupplierSlider";
 import Cart from "./Cart";
-import Transport from "./transport";
+import Transport from "./Transport";
 import SettingsPanel from "../common/settings/SettingsPanel"; // full-screen
 
 const DashboardComprador = () => {
