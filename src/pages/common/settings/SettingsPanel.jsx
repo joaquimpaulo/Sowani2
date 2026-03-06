@@ -8,10 +8,13 @@ import {
   LogOut,
   ArrowLeft,
   Accessibility as AccessibilityIcon,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
+import { useUserType } from "../../../context/UserTypeContext";
 
 import Profile from "./Profile";
+import SwitchProfile from "./SwitchProfile";
 import Accessibility from "./Accessibility";
 import Notifications from "./Notifications";
 import Privacy from "./Privacy";
@@ -20,13 +23,42 @@ import Logout from "./Logout";
 
 const SettingsPanel = ({ open, onClose }) => {
   const [selectedCard, setSelectedCard] = useState(null);
+  const [currentProfile, setCurrentProfile] = useState("Vendedor");
   const [currentLanguage, setCurrentLanguage] = useState("Português");
   const { user } = useAuth();
+  const { userType } = useUserType();
+
+  // Função para obter o nome do perfil atual
+  const getCurrentProfileName = () => {
+    switch (userType) {
+      case "agricultor":
+        return "Vendedor";
+      case "transportador":
+        return "Transportador";
+      case "comprador":
+        return "Comprador";
+      default:
+        return "Não definido";
+    }
+  };
 
   if (!open) return null;
 
   // ✅ Definição dos cards
   const cards = [
+    {
+      icon: <User className="w-6 h-6 text-orange-500" />,
+      title: "Alternar Perfil",
+      desc: `Atual: ${getCurrentProfileName()}`,
+      component: (
+        <SwitchProfile
+          currentProfile={currentProfile}
+          setCurrentProfile={setCurrentProfile}
+          onBack={() => setSelectedCard(null)}
+          user={user}
+        />
+      ),
+    },
     {
       icon: <User className="w-6 h-6 text-orange-500" />,
       title: "Perfil",
@@ -108,6 +140,7 @@ const SettingsPanel = ({ open, onClose }) => {
           {!(selectedCard !== null &&
             (
               cards[selectedCard].title === "Perfil" ||
+              cards[selectedCard].title === "Alternar Perfil" ||
               cards[selectedCard].title === "Notificações" ||
               cards[selectedCard].title === "Privacidade" ||
               cards[selectedCard].title === "Acessibilidade" ||
@@ -132,7 +165,7 @@ const SettingsPanel = ({ open, onClose }) => {
           </p>
         )}
 
-        {/* Lista de Cards ou Card selecionado */}
+        {/* Conteúdo principal do painel (cards ou card selecionado) */}
         {selectedCard === null ? (
           <div className="space-y-3">
             {cards.map((item, idx) => (

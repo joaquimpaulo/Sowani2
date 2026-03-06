@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Camera, Eye, EyeOff } from "lucide-react";
-import { auth, db, storage } from "../../../firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { updatePassword, updateEmail, reauthenticateWithCredential, EmailAuthProvider, updateProfile } from "firebase/auth";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useAuth } from "../../../context/AuthContext";
+import profileService from "../../../services/profileService";
+import { getUserData } from "../../../services/userService";
 
 const Profile = ({ onBack }) => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const { user, logout } = useAuth();
   const fileInputRef = useRef(null);
+
   const [userData, setUserData] = useState({
     name: "",
     phone: "",
@@ -18,34 +15,28 @@ const Profile = ({ onBack }) => {
     role: "",
     photoURL: "",
   });
+
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
     email: "",
-    newPassword: "",
     currentPassword: "",
+    newPassword: "",
   });
+
+  const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
 
   // Carregar dados do usuário
   useEffect(() => {
-    const loadUserData = async () => {
+    if (!user) return;
+
+    const loadUser = async () => {
       try {
-        const user = auth.currentUser;
-        if (!user) return;
-
-        // Buscar dados adicionais do Firestore
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        const data = {
-          name: user.displayName || userDoc.data()?.name || "",
-          phone: userDoc.data()?.phone || "",
-          email: user.email || "",
-          role: userDoc.data()?.role || userDoc.data()?.userType || "Usuário",
-          photoURL: user.photoURL || "/placeholder.svg",
-        };
-
+        const data = await getUserData(user);
         setUserData(data);
         setFormData(prev => ({
           ...prev,
@@ -54,159 +45,63 @@ const Profile = ({ onBack }) => {
           email: data.email,
         }));
       } catch (error) {
-        console.error("Erro ao carregar dados do usuário:", error);
-        setMessage({ type: "error", text: "Erro ao carregar dados" });
+        setMessage({ type: "error", text: error.message || "Erro ao carregar dados" });
       }
     };
 
-    loadUserData();
-  }, []);
+    loadUser();
+  }, [user]);
 
+  // Atualização de campos
   const handleInputChange = (e) => {
     const { id, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [id]: value,
-    }));
+    setFormData(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleUploadImage = (e) => {
+  // Upload de imagem
+  const handleUploadImage = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validar tipo de arquivo
-    if (!file.type.startsWith("image/")) {
-      setMessage({ type: "error", text: "Selecione uma imagem válida" });
-      return;
-    }
-
-    // Validar tamanho (máx 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage({ type: "error", text: "Imagem muito grande (máx 5MB)" });
-      return;
-    }
-
-    uploadImage(file);
-  };
-
-  const uploadImage = async (file) => {
     try {
       setUploadingImage(true);
-      setMessage({ type: "", text: "" });
-      const user = auth.currentUser;
-
-      if (!user) {
-        setMessage({ type: "error", text: "Usuário não autenticado" });
-        return;
-      }
-
-      // Criar referência no Storage
-      const timestamp = Date.now();
-      const storageRef = ref(storage, `profile-pictures/${user.uid}-${timestamp}`);
-
-      // Upload da imagem
-      await uploadBytes(storageRef, file);
-
-      // Obter URL de download
-      const downloadURL = await getDownloadURL(storageRef);
-
-      // Atualizar perfil do usuário no Firebase Auth
-      await updateProfile(user, { photoURL: downloadURL });
-
-      // Atualizar no Firestore
-      await updateDoc(doc(db, "users", user.uid), { photoURL: downloadURL });
-
-      // Atualizar estado local
-      setUserData(prev => ({
-        ...prev,
-        photoURL: downloadURL,
-      }));
-
-      setMessage({ type: "success", text: "Foto de perfil atualizada com sucesso!" });
-      setTimeout(() => setMessage({ type: "", text: "" }), 3000);
+      const url = await profileService.uploadProfileImage(user, file);
+      setUserData(prev => ({ ...prev, photoURL: url }));
+      setMessage({ type: "success", text: "Foto de perfil atualizada!" });
     } catch (error) {
-      console.error("Erro ao fazer upload da imagem:", error);
-      setMessage({ type: "error", text: "Erro ao fazer upload da imagem" });
+      setMessage({ type: "error", text: error.message });
     } finally {
       setUploadingImage(false);
-      // Limpar o input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
+  // Salvar perfil
   const handleSave = async () => {
     try {
       setLoading(true);
-      setMessage({ type: "", text: "" });
-      const user = auth.currentUser;
-
-      if (!user) {
-        setMessage({ type: "error", text: "Usuário não autenticado" });
-        return;
-      }
-
-      // Atualizar Nome
-      if (formData.name !== userData.name) {
-        await updateDoc(doc(db, "users", user.uid), { name: formData.name });
-      }
-
-      // Atualizar Telefone
-      if (formData.phone !== userData.phone) {
-        await updateDoc(doc(db, "users", user.uid), { phone: formData.phone });
-      }
-
-      // Atualizar E-mail (requer re-autenticação)
-      if (formData.email !== userData.email && formData.currentPassword) {
-        try {
-          const credential = EmailAuthProvider.credential(user.email, formData.currentPassword);
-          await reauthenticateWithCredential(user, credential);
-          await updateEmail(user, formData.email);
-          await updateDoc(doc(db, "users", user.uid), { email: formData.email });
-        } catch (error) {
-          setMessage({ type: "error", text: "Senha atual incorreta" });
-          return;
-        }
-      }
-
-      // Atualizar Senha (requer re-autenticação)
-      if (formData.newPassword && formData.currentPassword) {
-        try {
-          const credential = EmailAuthProvider.credential(user.email, formData.currentPassword);
-          await reauthenticateWithCredential(user, credential);
-          await updatePassword(user, formData.newPassword);
-          setFormData(prev => ({
-            ...prev,
-            newPassword: "",
-            currentPassword: "",
-          }));
-        } catch (error) {
-          setMessage({ type: "error", text: "Senha atual incorreta" });
-          return;
-        }
-      }
-
-      setUserData(prev => ({
-        ...prev,
-        name: formData.name,
-        phone: formData.phone,
-        email: formData.email,
-      }));
+      const updates = await profileService.updateProfile(user, formData);
+      setUserData(prev => ({ ...prev, ...updates }));
+      setFormData(prev => ({ ...prev, currentPassword: "", newPassword: "" }));
 
       setMessage({ type: "success", text: "Perfil atualizado com sucesso!" });
-      setTimeout(() => setMessage({ type: "", text: "" }), 3000);
     } catch (error) {
-      console.error("Erro ao salvar:", error);
-      setMessage({ type: "error", text: "Erro ao atualizar perfil" });
+      setMessage({ type: "error", text: error.message });
     } finally {
       setLoading(false);
     }
   };
 
+  // Detectar mudanças
+  const hasChanges =
+    formData.name !== userData.name ||
+    formData.phone !== userData.phone ||
+    formData.email !== userData.email ||
+    formData.newPassword.trim() !== "";
+
   return (
     <div className="p-4 text-white">
-      {/* Header - seta volta ao painel */}
+      {/* Header */}
       <div className="flex items-center gap-4 mb-6 px-2">
         <button
           onClick={onBack}
@@ -223,7 +118,7 @@ const Profile = ({ onBack }) => {
         <div className="flex justify-center mb-8">
           <div className="relative">
             <img
-              src={userData.photoURL}
+              src={userData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || "Utilizador")}&background=random`}
               alt="Avatar"
               className="w-32 h-32 rounded-full object-cover border-4 border-white/20"
             />
@@ -235,7 +130,6 @@ const Profile = ({ onBack }) => {
             >
               <Camera className="w-5 h-5 text-white" />
             </button>
-            {/* Input de arquivo invisível */}
             <input
               ref={fileInputRef}
               type="file"
@@ -246,7 +140,7 @@ const Profile = ({ onBack }) => {
           </div>
         </div>
 
-        {/* Mensagens de Status */}
+        {/* Mensagem */}
         {message.text && (
           <div className={`mb-4 p-3 rounded-xl text-center ${
             message.type === "success" ? "bg-green-600/20 text-green-300" : "bg-red-600/20 text-red-300"
@@ -290,7 +184,7 @@ const Profile = ({ onBack }) => {
               className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:border-green-500"
             />
             <p className="text-green-400 text-xs mt-1">
-              Para alterar o e-mail, insira sua senha atual abaixo
+              Para alterar o e-mail, insira sua senha atual
             </p>
           </div>
 
@@ -356,8 +250,8 @@ const Profile = ({ onBack }) => {
           <div className="space-y-3 pt-4">
             <button
               onClick={handleSave}
-              disabled={loading}
-              className="w-full bg-[#E18003] hover:bg-[#d97003] disabled:opacity-50 h-14 rounded-2xl text-lg font-semibold"
+              disabled={loading || !hasChanges}
+              className="w-full bg-[#E18003] hover:bg-[#d97003] disabled:opacity-50 disabled:cursor-not-allowed h-14 rounded-2xl text-lg font-semibold"
             >
               {loading ? "Guardando..." : "Guardar"}
             </button>
